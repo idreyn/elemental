@@ -1,4 +1,4 @@
-== What's wrong with this picture? ==
+# What's wrong with this picture? 
 
 HTML5 is an umbrella term for three things:
 *  HTML, for semantics
@@ -55,7 +55,7 @@ Elemental offers a better alternative to this mess by letting you write HTML, CS
 	
 Nice, isn't it? With Elemental you can clearly define what a `.better-select` is supposed to be &mdash; what its HTML looks like, how it is styled, and how it behaves. So in a sense, Elemental is a tiny domain-specific language (DSL) for writing components in HTML.
 
-== The Format ==
+# The Format
 
 Elemental definitions go inside a `.elm` file, which consists of one or more `def` statements that look like this:
 
