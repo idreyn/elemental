@@ -373,7 +373,7 @@ ParseUtil.handleEscapeChars = function(s)
 				case 'extends':
 					return {
 						type: 'extensor',
-						supers: ParseUtil.split(body,[',','\n']).map(StringUtil.trim);
+						supers: ParseUtil.split(body,[',','\n']).map(StringUtil.trim)
 					}
 				case 'hover':
 				case 'focus':
