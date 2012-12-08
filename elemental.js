@@ -2,6 +2,8 @@ var elm;
 
 (function() {
 
+$.holdReady(true);
+
 var StringUtil = {};
 var ParseUtil = {};
 
@@ -265,6 +267,8 @@ ParseUtil.handleEscapeChars = function(s)
 			rest = args.slice(1);
 		if(elm.def(type)) {
 			return elm.def(type).call(null,rest,null);
+		} else {
+			throw new Error("Elm: Can't find type "+type+".");
 		}
 	},
 	apply: function() {
@@ -663,9 +667,22 @@ ParseUtil.handleEscapeChars = function(s)
 	}
 };
 
-document.querySelectorAll('script[type="text/elemental"]').forEach(function(script) {
-	console.log(script);
-	elm.parse(script.innerHTML);
-});
+var seeIfLoaded = function() {
+	if($('head').length > 0) {
+		elm.using.apply(null,$('script').toArray().map(function(i) {
+			if($(i).attr('type').indexOf('elemental') != -1) {
+				return $(i).attr('src') || elm.parse($(i).html());
+			} else {
+				return false;
+			}
+		}).filter(function(i) { return i; }).concat(function(d) {
+			$.holdReady(false);
+		}));
+	} else {
+		setTimeout(seeIfLoaded,10);
+	}
+}
+
+seeIfLoaded();
 
 }).call();
