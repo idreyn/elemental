@@ -370,6 +370,11 @@ ParseUtil.handleEscapeChars = function(s)
 						type: name,
 						html: body
 					}
+				case 'extends':
+					return {
+						type: 'extensor',
+						supers: ParseUtil.split(body,[',','\n']).map(StringUtil.trim);
+					}
 				case 'hover':
 				case 'focus':
 				case 'css':
@@ -516,6 +521,11 @@ ParseUtil.handleEscapeChars = function(s)
 						}
 					}
 				}
+				break;
+			case 'extensor': 
+				__selector__.supers.forEach(function(s) {
+					elm.apply(__el__,s);
+				});
 				break;
 			case 'css':
 				__selector__.properties.forEach(function(p) {
