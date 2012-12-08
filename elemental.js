@@ -1,3 +1,7 @@
+var elm;
+
+(function() {
+
 var StringUtil = {};
 var ParseUtil = {};
 
@@ -242,7 +246,7 @@ ParseUtil.handleEscapeChars = function(s)
 	return s.replace(/\\n/g,"\n").replace(/\\t/g,"\t")
 }
 
-var elm = {
+ elm = {
 	_argarr: function(a) { 
 		var n = [],
 			i; 
@@ -649,14 +653,9 @@ var elm = {
 	}
 };
 
-var d;
-
-function test() {
-	elm.using('better-select.elm',function() {
-		$('body').append(elm.create('better-select',['Alpha','Beta','Gamma']));
-	});
-}
-
-$(function() {
-	test();
+document.querySelectorAll('script[type="text/elemental"]').forEach(function(script) {
+	console.log(script);
+	elm.parse(script.innerHTML);
 });
+
+}).call();

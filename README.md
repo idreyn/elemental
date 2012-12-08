@@ -104,6 +104,12 @@ But that's not all Elemental can do. Here's the lowdown on all the different blo
 
 * __find selector:__ Lets you apply a CSS rule to an arbitrary selector. Note that this happens only once, when the object is created.
 
+# So how do I use it?
+
+Elemental is dependent on jQuery, so you'll need to include that, along with elemental.js, in the `<head>` of your document. After these two `<script>` tags, you can add Elemental definitions like this:
+	
+	<script type='text/elemental' src='my-definitions.elm'></script>
+	
 
 
 		
