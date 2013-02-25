@@ -69,7 +69,7 @@ Elemental definitions go inside a `.elm` file, which consists of one or more `de
 	
 	}
 	
-This tells us that an element with the class `.my-element` is just a span of some width. If we save it to `my-element.elm`, we can include elemental.js into our document and then write:
+This tells us that an element with the class `.my-element` is just a span of some width. If we save it to `my-element.elm`, we can include Elemental.js into our document and then write:
 
 	elm.using('my-element.elm',function() {
 		// We're ready!
@@ -98,18 +98,36 @@ But that's not all Elemental can do. Here's the lowdown on all the different blo
 
 * __on event(e):__ The `on` block binds the JS it contains to an event, say, `click` or `keydown`. The parentheses can contain parameters to be used inside the block, but are completely optional.
 
-* __method doSomething([params]):__ A `method` block is just a function bound to the object being defined. You can call it later.
+* __method doSomething([parameters...]):__ A `method` block is just a function bound to the object being defined. You can call it later.
 
-* __my item([params]):__ The `my` keyword lets you nest Elemental definitions. When Elemental sees a `my` block, it creates another definition that is localized in scope. It will be applied to any matching elements in the `html` block, but you can create another one using `this.create(type,params...)` in a JS block. Nested JS blocks can use `$parent` and `$root` to navigate the structure of the definition.
+* __my item([parameters...]):__ The `my` keyword lets you nest Elemental definitions. When Elemental sees a `my` block, it creates another definition that is localized in scope. It will be applied to any matching elements in the `html` block, but you can create another one using `this.create(type,params...)` in a JS block. Nested JS blocks can use `$parent` and `$root` to navigate the structure of the definition.
 
 * __find selector:__ Lets you apply a CSS rule to an arbitrary selector. Note that this happens only once, when the object is created.
 
+* __extends:__ You can provide a newline- or comma-delineated list of other Elemental classes for this one to inherit CSS and Javascript blocks from.
+
 # So how do I use it?
 
-Elemental is dependent on jQuery, so you'll need to include that, along with elemental.js, in the `<head>` of your document. After these two `<script>` tags, you can add Elemental definitions like this:
+Elemental is dependent on jQuery, so you'll need to include that, along with Elemental.js, in the `<head>` of your document. Anywhere before these `<script>` tags, you can add Elemental definitions like this:
 	
 	<script type='text/elemental' src='my-definitions.elm'></script>
 	
+When the DOM is parsed, Elemental will scour the document for elements whose class names match the name of an Elemental definition and will apply the definition to those elements. You can also create a new instance of an Elemental class like this:
+
+	var obj = elm.create('ClassName',[arguments...]);
+	
+The `elm` object has a couple of other noteworthy methods, too:
+
+* __apply(HTMLElement e,String definition,[arguments...]):__ Applies an Elemental definition to an HTML object. 
+
+*  __def(String definition):__  Returns the constructor function for an Elemental definition.
+
+* __parse(String toParse):__ Parses an Elemental definition from any string input.
+
+* __using(String file1, String file2, String fileN...,[Function callback])__: Loads all of the specified Elemental files for use and then calls `callback` when they're ready.
+
+That's just about it! You're ready to incorporate Elemental into your HTML5 workflow.
+
 
 
 		

@@ -40,6 +40,7 @@ StringUtil.ltrim = function(input)
 
 StringUtil.rtrim = function(input)
 {
+	if(!input) return '';
 	var size = input.length;
 	for(var i = size; i > 0; i--)
 	{
