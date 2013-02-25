@@ -1,3 +1,5 @@
+![elemental](http://i.eho.st/ppbljd2x.png "Elemental")
+
 # What's wrong with this picture? 
 
 HTML5 is an umbrella term for three things:
