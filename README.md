@@ -102,7 +102,7 @@ But that's not all Elemental can do. Here's the lowdown on all the different blo
 
 * __my item([parameters...]):__ The `my` keyword lets you nest Elemental definitions. When Elemental sees a `my` block, it creates another definition that is localized in scope. It will be applied to any matching elements in the `html` block, but you can create another one using `this.create(type,params...)` in a JS block. Nested JS blocks can use `$parent` and `$root` to navigate the structure of the definition.
 
-* __find selector:__ Lets you apply a CSS rule to an arbitrary selector. Note that this happens only once, when the object is created.
+* __find [selector]:__ Lets you apply a CSS rule to an arbitrary selector. Note that this happens only once, when the object is created.
 
 * __extends:__ You can provide a newline- or comma-delineated list of other Elemental classes for this one to inherit CSS and Javascript blocks from.
 
