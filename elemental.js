@@ -248,7 +248,12 @@ var elm;
                 rest = args.slice(2);
             if (elm.def(type)) {
                 return elm.def(type).call(null, rest, el);
+            } else {
+                throw new Error("Elm: Can't find type " + type + ".");
             }
+        },
+        extend: function(el,type) {
+            return elm.def(type).call(null,[],el,false);
         },
         using: function () {
             var files = elm._argarr(arguments),
@@ -301,7 +306,7 @@ var elm;
                 name = sig.slice(0, sig.indexOf('('));
                 params = ParseUtil.split(
                 sig.slice(sig.indexOf('(') + 1, sig.length - 1),
-                    ',').map(function (param) {
+                ',').map(function (param) {
                     var name, value = null;
                     //Check for a default value
                     if (param.indexOf('=') != -1) {
@@ -366,11 +371,27 @@ var elm;
                                     value: StringUtil.trim(prop[1])
                                 }
                             })
-                        }
+                        };
+                    case 'style':
+                        return {
+                            type: name,
+                            name: StringUtil.trim(sig.split(' ').slice(1).join(' ')),
+                            properties: ParseUtil.split(body, '\n').map(function (prop) {
+                                prop = StringUtil.trim(prop);
+                                if (prop.charAt(prop.length - 1) == ';') {
+                                    prop = prop.slice(0, prop.length - 1);
+                                }
+                                prop = prop.split(':');
+                                return {
+                                    prop: StringUtil.trim(prop[0]),
+                                    value: StringUtil.trim(prop[1])
+                                }
+                            })
+                        };
                     case 'on':
                         var evt = sig.split(' ').filter(function (l) {
                             return l.length;
-                        })[1],
+                        }).slice(1).join(' '),
                             params = [];
                         if (evt.indexOf('(') != -1) {
                             // Handler has parameters
@@ -382,7 +403,7 @@ var elm;
                             event: evt,
                             parameters: params,
                             body: body
-                        }
+                        };
                     case 'method':
                         var name = sig.split(' ').filter(function (l) {
                             return l.length;
@@ -398,12 +419,12 @@ var elm;
                             name: name,
                             parameters: params,
                             body: body
-                        }
+                        };
                     case 'constructor':
                         return {
                             type: 'constructor',
                             body: body
-                        }
+                        };
                     case 'find':
                         var cssSelector = sig.split(' ').filter(function (l) {
                             return l.length;
@@ -412,7 +433,7 @@ var elm;
                             type: 'subselector',
                             cssSelector: cssSelector,
                             body: elm.parseSelectors(body, false)
-                        }
+                        };
                     case 'my':
                         var name,
                         params = [];
@@ -446,16 +467,17 @@ var elm;
                             name: name,
                             parameters: params,
                             body: elm.parseSelectors(body)
-                        }
+                        };
                 }
                 return name;
             });
         },
         createConstructor: function (definition, root) {
             if (root === undefined) root = true;
-            return function (args, self) {
+            return function (args, self, fireReady) {
                 var frame = {},
                 i;
+                if (fireReady === undefined) fireReady = true;
                 for (i = 0; i < definition.parameters.length; i++) {
                     if (args[i] !== undefined) {
                         frame[definition.parameters[i].name] = args[i];
@@ -463,13 +485,66 @@ var elm;
                         frame[definition.parameters[i].name] = definition.parameters[i].value
                     }
                 }
+
                 definition.body.forEach(function (selector) {
-                    self = elm.applySelectorTo(self, selector, frame, null, root);
+                    //try {
+                        self = elm.applySelectorTo(self, selector, frame, null, root);
+                    //} catch(e) {
+                   //   throw new Error('To create an element with elm.create(), its definition must begin with an html block.');
+                  //  }
                 });
-                if (self.____constructor) self.____constructor.call(self);
+                self.____construct = function() {
+                    self.____constructors = self.____constructors || [];
+                    self.____constructors.reverse().forEach(function(constructor) {
+                        if(!constructor.called) constructor.call(self);
+                        constructor.called = true;
+                    });
+                 }
+                // Add getStyle, setStyle, applyStyle function
+                self.getStyle = function(name,prop) {
+                    var style = self.__styles__[name];
+                    style.forEach(function(s) {
+                        if(s.prop == prop) {
+                            return s.value;
+                        }
+                    });
+                };
+                self.setStyle = function(name,prop,val) {
+                    var style = self.__styles__[name];
+                    style.forEach(function(s) {
+                        if(s.prop == prop) {
+                            s.value = val;
+                        }
+                    });
+                };
+                self.applyStyle = function(name) {
+                    var style = self.__styles__[name];
+                    if(!style) return;
+                    style.forEach(function (p) {
+                        var val = p.value;
+                        for (var prop in frame) {
+                            val = val.split('$' + prop).join(frame[prop]);
+                        }
+                        $(self).css(p.prop, val);
+                    });
+                };
+                self.my = function(type) {
+                    return $(self).find('.' + type).get(0);
+                };
+                self.$my = function(type) {
+                    return $(self).find('.' + type);
+                };
+                self.____construct();
+                $(self).find('*').each(function() {
+                    if(this.____construct) {
+                        this.____construct();
+                    }
+                })
                 $(self).addClass(definition.name);
+                if(fireReady) $(self).trigger('ready');
+                self.$ = $(self);
                 return self;
-            }
+            };
         },
         applySelectorTo: function (__el__, __selector__, __frame__, parent, root) {
             // All of these underscores are to avoid namespace pollution...
@@ -504,7 +579,7 @@ var elm;
                     break;
                 case 'extensor':
                     __selector__.supers.forEach(function (s) {
-                        elm.apply(__el__, s);
+                        elm.extend(__el__, s);
                     });
                     break;
                 case 'css':
@@ -514,6 +589,16 @@ var elm;
                             val = val.split('$' + prop).join(__frame__[prop]);
                         }
                         $(__el__).css(p.prop, val);
+                    });
+                    break;
+                case 'style': 
+                    if(!__el__.__styles__) __el__.__styles__ = {};
+                    __el__.__styles__[__selector__.name] = __selector__.properties.map(function(p) {
+                        // We're mapping to create a new list of CSS properties for each element, instead of modifying the definition
+                        return {
+                            prop: p.prop,
+                            value: p.value
+                        };
                     });
                     break;
                 case 'hover':
@@ -603,11 +688,12 @@ var elm;
                     var $parent = $(parent);
                     var $root = $(root);
                     var ____func = 'var __constructor__ = function() { ';
-                    ____func += __selector__.body;
+                    ____func += (__selector__.body && __selector__.body.length > 0) ? __selector__.body : '';
                     ____func += '}';
                     try {
                         eval(____func);
-                        __el__.____constructor = __constructor__;
+                        if(!__el__.____constructors) __el__.____constructors = [];
+                        __el__.____constructors.push(__constructor__);
                     } catch (e) {}
                     break;
                 case 'method':
@@ -633,6 +719,15 @@ var elm;
                         __selector__.body.forEach(function (block) {
                             elm.applySelectorTo(e, block, __frame__, __el__, root);
                         });
+                        e.$ = $(e);
+                        e.____construct = function() {
+                            e.____constructors = e.____constructors || [];
+                            e.____constructors.reverse().forEach(function(constructor) {
+                                if(!constructor.called) constructor.call(e);
+                                constructor.called = true;
+                            });
+                         }
+                         e.____construct();
                     });
                     break;
             };
@@ -641,6 +736,7 @@ var elm;
     };
 
     var seeIfLoaded = function () {
+        console.log('seeIfLoaded');
         if ($('head').length > 0) {
             elm.using.apply(null, $('script').toArray().map(function (i) {
                 if ($(i).attr('type').indexOf('elemental') != -1) {
@@ -657,7 +753,6 @@ var elm;
             setTimeout(seeIfLoaded, 10);
         }
     }
-
     seeIfLoaded();
 
 }).call();
