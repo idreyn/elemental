@@ -238,7 +238,18 @@ var elm;
             if (elm.def(type)) {
                 return elm.def(type).call(null, rest, null);
             } else {
-                throw new Error("Elm: Can't find type " + type + ".");
+                throw new Error("[Elemental] Can't find type " + type + ".");
+            }
+        },
+        elmify: function(el) {
+            for(var def in elm._definitions) {
+                $(el).find('.' + def).toArray().map(function(child) {
+                    if(!$(child).hasClass('elm-init')) {
+                        console.log('go',$(child).attr('class'));
+                        elm.apply(child,def);
+                    }
+                });
+                if($(el).hasClass(def) && !$(el).hasClass('elm-init')) elm.apply(el,def);
             }
         },
         apply: function () {
@@ -249,11 +260,11 @@ var elm;
             if (elm.def(type)) {
                 return elm.def(type).call(null, rest, el);
             } else {
-                throw new Error("Elm: Can't find type " + type + ".");
+                throw new Error("[Elemental] Can't find type " + type + ".");
             }
         },
-        extend: function(el,type) {
-            return elm.def(type).call(null,[],el,false);
+        extend: function(el,type,frame) {
+        	return elm.def(type).call(null,frame || [],el,false);
         },
         using: function () {
             var files = elm._argarr(arguments),
@@ -261,12 +272,11 @@ var elm;
             if (files[files.length - 1] instanceof Function) {
                 cb = files.pop();
             }
+            if(files.length == 0) cb();
             var i = 0;
             files.forEach(function (file) {
-                $.get(file, {
-                    rand: Math.random()
-                }, function (data) {
-                    elm.parse(data);
+                $.get(file, {}, function (data) {
+                    elm.parse(data,file);
                     i++;
                     if (i == files.length) {
                         if (cb) cb.call();
@@ -274,223 +284,444 @@ var elm;
                 });
             });
         },
-        parse: function (str) {
-            return ParseUtil.split(str, '\n').filter(function (line) {
-                return StringUtil.trim(line).length > 0;
-            }).map(function (line) {
-                var kw = line.slice(0, line.indexOf(' '));
-                if (kw == 'def') {
-                    // kw should always equal 'def'
-                    var def = elm.parseDefinition(line);
-                    elm._definitions[def.name] = elm.createConstructor(def);
-                    $('.' + def.name).each(function () {
-                        elm.apply(this, def.name);
-                    });
+        parse: function(file,filename,lineOffset,depthOffset,add) {
+
+            if(add !== false) add = true;
+
+            var str = {};
+
+            str.trim = function (input) {
+                return str.ltrim(str.rtrim(input));
+            };
+
+
+            str.ltrim = function (input) {
+                var size = input.length;
+                for (var i = 0; i < size; i++) {
+                    if (input.charCodeAt(i) > 32) {
+                        return input.substring(i);
+                    }
                 }
-            });
-        },
-        parseDefinition: function (str) {
-            var ind = -1,
-                sig,
-                name,
-                params = [],
-                body;
-            // Should start with 'def' so we'll get rid of that right off the bat
-            str = StringUtil.trim(str.slice(4));
-            // Get the definition signature -- we'll parse that next
-            // Also get the body from inside the brackets
-            sig = StringUtil.trim(str.slice(0, ParseUtil.nextIndexOf('{', str)));
-            body = StringUtil.trim(str.slice(ParseUtil.nextIndexOf('{', str) + 1, str.length - 1));
-            // Sig might have parameters
-            if (sig.indexOf('(') != -1) {
-                name = sig.slice(0, sig.indexOf('('));
-                params = ParseUtil.split(
-                sig.slice(sig.indexOf('(') + 1, sig.length - 1),
-                ',').map(function (param) {
-                    var name, value = null;
-                    //Check for a default value
-                    if (param.indexOf('=') != -1) {
-                        name = StringUtil.trim(param.slice(0, param.indexOf('=')));
-                        value = StringUtil.trim(param.slice(param.indexOf('=') + 1));
-                        if (value.charAt(0) == '"' || value.charAt(0) == "'") {
-                            value = value.slice(1, value.length - 1);
-                        }
+                return "";
+            }
+
+            str.rtrim = function (input) {
+                if (!input) return '';
+                var size = input.length;
+                for (var i = size; i > 0; i--) {
+                    if (input.charCodeAt(i - 1) > 32) {
+                        return input.substring(0, i);
+                    }
+                }
+
+                return "";
+            }
+
+            str.split = function(src,by,keepDelimiter) {
+                var res = [],
+                    delim = '',
+                    build = '',
+                    next = '',
+                    chars = src.split('');
+                if(typeof by == 'string') by = [by];
+                while(next = chars.shift()) {
+                    if(by.indexOf(next) != -1) {
+                        // next is a delimeter
+                        res.push(
+                            (keepDelimiter? delim : '') + build
+                        );
+                        build = '';
+                        delim = next;
                     } else {
-                        name = param;
+                        build += next;
                     }
-                    return {
-                        name: name,
-                        value: value
+                }
+                res.push(
+                    (keepDelimiter? delim : '') + build
+                );
+                return res;
+            }
+
+            str.nonEmpty = function(s) {
+                return s && s.length > 0;
+            }
+
+            lineOffset |= 0;
+            depthOffset |= 0;
+            var lines = file.split('\n'),
+                definitions = [],
+                currentDefinition,
+                currentBlockBody,
+                currentBlock,
+                collect = [],
+                depth = 0,
+                line,
+                lineNumber = 0;
+                expectable = {
+                    'DEFINITION': 'def',
+                    'BLOCK': ['html','contents','css','method','on','extends','find','my','style','hover','focus','constructor'],
+                    'CONTENTS': ''
+                };
+
+            function getDepth(line) {
+                var i = 0;
+                while(line.charAt(i) == '\t') {
+                    i++;
+                }
+                return i + depthOffset;
+            }
+
+            function keyword_category(kw) {
+                for(var k in expectable) {
+                    if(expectable[k].indexOf(kw) != -1) {
+                        return k;
                     }
+                }
+                return 'NOT_A_KEYWORD';
+            }
+
+            function keyword_to_block_type(kw) {
+                var map = {
+                    'extends': 'extensor',
+                    'html': 'html',
+                    'contents': 'contents',
+                    'css': 'css',
+                    'style': 'style',
+                    'hover': 'hover',
+                    'focus': 'focus',
+                    'method': 'method',
+                    'on': 'event',
+                    'constructor': 'constructor',
+                    'find': 'subselector',
+                    'my': 'subdef'
+                };
+                return map[kw];
+            }
+
+            function expect_empty(str) {
+                return !str || str.length == 0;
+            }
+
+            function error(description) {
+                throw '[' + filename + ', line ' + (lineNumber + lineOffset) + '] ' + description;
+            }
+
+            function warn(description) {
+                console.warn('[' + filename + ', line ' + (lineNumber + lineOffset) + '] ' + description);   
+            }
+
+            function warn_about_braces() {
+               // warn('Braces are deprecated in favor of whitespace demarcation');
+            }
+
+            function error_unexpected_block_argument(str,kw) {
+                error(str + ' is invalid after ' + kw);
+            }
+
+            function error_expected_block_argument(kw) {
+                error(kw + ' should be followed by an argument');
+            }
+
+            function strip_depth(arr) {
+                return arr.map(function(str) {
+                    return str.slice(1);
                 });
-            } else {
-                name = sig;
             }
-            return {
-                name: name,
-                parameters: params,
-                body: elm.parseSelectors(body)
+
+            function add_block(currentBlockBody) {
+                currentBlockBody.definition = currentDefinition;
+                parse_body(currentBlockBody,currentBlock,collect);
+                currentDefinition.body.push(currentBlockBody);
             }
-        },
-        parseSelectors: function (body, topLevel) {
-            var sels;
-            if (topLevel === undefined) topLevel = true;
-            return ParseUtil.split(body, '\n').filter(function (selector) {
-                return StringUtil.trim(selector).length > 0;
-            }).map(function (selector) {
-                var sig, body, name, ind;
-                selector = StringUtil.trim(selector);
-                ind = ParseUtil.nextIndexOf('{', selector);
-                sig = StringUtil.trim(selector.slice(0, ind));
-                body = StringUtil.trim(selector.slice(ind + 1, StringUtil.trim(selector).length - 1));
-                name = sig.split(' ')[0];
-                switch (name) {
-                    case 'html':
-                        return {
-                            type: name,
-                            html: body
+
+            function add_definition(currentDefinition) {
+                definitions.push(currentDefinition);
+            }
+
+            function parse_definition_signature(def,signature) {
+                if (signature.charAt(signature.length - 1) == '{') {
+                    warn('Braces are deprecated in favor of whitespace demarcation');
+                    signature = signature.slice(0,-1);
+                }
+                var reg = /^([A-Za-z0-9_\-]*)(\([A-Za-z0-9_=\"\'\.\,\s]*\))?$/;
+                var res = signature.match(reg);
+                if(!res || !res[1]) {
+                    error('"' + signature + '" is not a valid definition signature');
+                } else {
+                    def.name = res[1];
+                    if(res[2]) {
+                        def.parameters = res[2].slice(1,res[2].length - 1).split(',').map(function(k) {
+                            var s = k.split('=').map(StringUtil.trim);
+                            if(s.length > 1) {
+                                var val = s[1];
+                                if(val.charAt(0) == '"' || val.charAt(0) == "'") {
+                                    val = val.slice(1,-1);
+                                }
+                                return {
+                                    name: s[0],
+                                    value: val
+                                };
+                            } else {
+                                return {
+                                    name: k,
+                                    value: null
+                                };
+                            }
+                        })
+                    } else {
+                        def.parameters = [];
+                    }
+                }
+            }
+
+            function parse_block_signature(def,kw,signature) {
+                def.type = keyword_to_block_type(kw);
+                switch(kw) {
+                    case 'method':
+                        var reg = /^([A-Za-z0-9_]*)(\([A-Za-z0-9_,]*\))?$/;
+                        var res = signature.match(reg);
+                        if(!res || !res[1]) {
+                            error('"' + signature + '" is not a valid method signature');
+                        } else {
+                            def.name = res[1];
+                            if(res[2]) {
+                                def.parameters = res[2].slice(1,res[2].length - 1).split(',')
+                            } else {
+                                def.parameters = [];
+                            }
                         }
-                    case 'extends':
-                        return {
-                            type: 'extensor',
-                            supers: ParseUtil.split(body, [',', '\n']).map(StringUtil.trim)
+                        break;
+                    case 'on':
+                        var reg = /^([A-Za-z0-9_\-\s]*)(\([A-Za-z0-9_,]*\))?$/;
+                        var res = signature.match(reg);
+                        if(!res || !res[1]) {
+                            error('"' + signature + '" is not a valid event handler signature');
+                        } else {
+                            def.event = res[1];
+                            if(res[2]) {
+                                def.parameters = res[2].slice(1,res[2].length - 1).split(',')
+                            } else {
+                                def.parameters = [];
+                            }
                         }
+                        break;
+                    case 'my':
+                        def.name = signature;
+                        break;
+                    case 'find':
+                        def.cssSelector = signature;
+                        break;
+                    case 'style':
+                        def.name = signature;
+                }
+            }
+
+            function parse_body(def,kw,body) {
+                var res;
+                if(kw != 'my' && kw != 'find') {
+                    body = body.map(str.trim);
+                }
+                switch(kw) {
+                    case 'css':
                     case 'hover':
                     case 'focus':
-                    case 'css':
-                        return {
-                            type: name,
-                            properties: ParseUtil.split(body, '\n').map(function (prop) {
-                                prop = StringUtil.trim(prop);
-                                if (prop.charAt(prop.length - 1) == ';') {
-                                    prop = prop.slice(0, prop.length - 1);
-                                }
-                                prop = prop.split(':');
-                                return {
-                                    prop: StringUtil.trim(prop[0]),
-                                    value: StringUtil.trim(prop[1])
-                                }
-                            })
-                        };
                     case 'style':
-                        return {
-                            type: name,
-                            name: StringUtil.trim(sig.split(' ').slice(1).join(' ')),
-                            properties: ParseUtil.split(body, '\n').map(function (prop) {
-                                prop = StringUtil.trim(prop);
-                                if (prop.charAt(prop.length - 1) == ';') {
-                                    prop = prop.slice(0, prop.length - 1);
-                                }
-                                prop = prop.split(':');
-                                return {
-                                    prop: StringUtil.trim(prop[0]),
-                                    value: StringUtil.trim(prop[1])
-                                }
-                            })
-                        };
-                    case 'on':
-                        var evt = sig.split(' ').filter(function (l) {
-                            return l.length;
-                        }).slice(1).join(' '),
-                            params = [];
-                        if (evt.indexOf('(') != -1) {
-                            // Handler has parameters
-                            params = evt.slice(evt.indexOf('(') + 1, evt.length - 1).split(',').map(StringUtil.trim);
-                            evt = evt.slice(0, evt.indexOf('('));
-                        }
-                        return {
-                            type: 'event',
-                            event: evt,
-                            parameters: params,
-                            body: body
-                        };
+                        // Style
+                        res = body.map(function(line) {
+                            var r = line.split(':'),
+                                prop = str.trim(r[0]),
+                                value = str.trim(r[1]);
+                            if (value.charAt(value.length - 1) == ';') {
+                                value = value.slice(0, -1);
+                            }
+                            return {
+                                prop: prop,
+                                value: value
+                            };
+                        });
+                        def.properties = res;
+                        break;
                     case 'method':
-                        var name = sig.split(' ').filter(function (l) {
-                            return l.length;
-                        })[1],
-                            params = [];
-                        if (name.indexOf('(') != -1) {
-                            // Method has parameters
-                            params = name.slice(name.indexOf('(') + 1, name.length - 1).split(',').map(StringUtil.trim);
-                            name = name.slice(0, name.indexOf('('));
-                        }
-                        return {
-                            type: 'method',
-                            name: name,
-                            parameters: params,
-                            body: body
-                        };
                     case 'constructor':
-                        return {
-                            type: 'constructor',
-                            body: body
-                        };
+                    case 'on':
+                        // Javascript
+                        res = body.join('\n');
+                        // A little bit of syntactic sugar: @my-element becomes my('my-element')
+                        res = res.replace(/@[A-Za-z][A-Za-z0-9_\-]*/g, function(s) {
+                            return "my('" + s.slice(1) + "')"
+                        });
+                        // ...and #my-element becomes $my('my-element') except in a few cases
+                         res = res.replace(/\$[A-Za-z][A-Za-z0-9_\-]*/g, function(s) {
+                            if(['parent','this','root','my'].indexOf(s.slice(1)) == -1) {
+                                return "$my('" + s.slice(1) + "')"
+                            } else {
+                                return s;
+                            }
+                        });
+                        // And use # as a 'fat arrow' to bind methods to their owners
+                        // this.#myMethod -> $.proxy(this.myMethod,this)
+                        res = res.replace(/this.#([A-Za-z][A-Za-z0-9_\-]*)/g, function(s) {
+                            return '$.proxy(' + s.split('#').join('') + ',this)';
+                        });
+                        break;
+                    case 'contents':
+                    case 'html':
+                        // HTML
+                        res = body.join('\n');
+                        def.html = str.trim(res);
+                        break;
+                    case 'extends':
+                        // List of superclasses
+                        res = body.filter(str.nonEmpty);
+                        def.supers = res;
+                        break;
                     case 'find':
-                        var cssSelector = sig.split(' ').filter(function (l) {
-                            return l.length;
-                        })[1];
-                        return {
-                            type: 'subselector',
-                            cssSelector: cssSelector,
-                            body: elm.parseSelectors(body, false)
-                        };
+                        var newBody = 'def ' + def.name + '\n';
+                        newBody +=  strip_depth(body,1).join('\n');
+                        res = elm.parse(newBody,filename,lineNumber,0,false);
+                        res = res[0];
+                        res = res.body;
                     case 'my':
-                        var name,
-                        params = [];
-                        sig = StringUtil.trim(sig.split(' ').slice(1).join(''));
-                        if (sig.indexOf('(') != -1) {
-                            name = sig.slice(0, sig.indexOf('('));
-                            params = ParseUtil.split(
-                            sig.slice(sig.indexOf('(') + 1, sig.length - 1),
-                                ',').map(function (param) {
-                                var name, value = null;
-                                //Check for a default value
-                                if (param.indexOf('=') != -1) {
-                                    name = StringUtil.trim(param.slice(0, param.indexOf('=')));
-                                    value = StringUtil.trim(param.slice(param.indexOf('=') + 1));
-                                    if (value.charAt(0) == '"' || value.charAt(0) == "'") {
-                                        value = value.slice(1, value.length - 1);
-                                    }
-                                } else {
-                                    name = param;
-                                }
-                                return {
-                                    name: name,
-                                    value: value
-                                }
-                            });
-                        } else {
-                            name = sig;
-                        }
-                        return {
-                            type: 'subdef',
-                            name: name,
-                            parameters: params,
-                            body: elm.parseSelectors(body)
-                        };
+                        // Subdefinition (recursive)
+                        var newBody = 'def ' + def.name + '\n';
+                        newBody +=  strip_depth(body,1).join('\n');
+                        res = elm.parse(newBody,filename,lineNumber,0,false);
+                        res = res[0];
+                        def.name = res.name;
+                        def.parameters = res.parameters;
+                        res = res.body;
                 }
-                return name;
-            });
-        },
+                def.body = res;
+            }
+            try {
+                while(lines.length > 0) {
+                    line = lines.shift();
+                    lineNumber++;
+                    var depth = getDepth(line);
+                    var split = line.split(' ').map(str.trim);
+                    var first = split[0]
+                    var rest = split[1];
+                    if(first.length == 0) {
+                        // Line is whitespace
+                        continue;
+                    }
+                    if(first.slice(0,2) == '//') {
+                        continue;
+                    }
+                    if(depth < 2 && first == '}') {
+                        warn_about_braces();
+                        continue;
+                    }
+                    if(depth == 0) {
+                        expect = 'DEFINITION';
+                    }
+                    if(depth == 1) {
+                        expect = 'BLOCK';
+                    }
+                    if(depth > 1) {
+                        expect = 'CONTENTS';
+                        if(!currentBlock) {
+                            error('Saw ' + first + ' where a BLOCK was expected');
+                        }
+                    }
+                    if(expect != 'CONTENTS' && expectable[expect].indexOf(first) == -1) {
+                        error('Expected a ' + expect + ' but got ' + first + ' which is a ' + keyword_category(first) + ' instead');
+                    }
+                    // Okay, now we can assume that we got a valid keyword for this depth
+                    if(depth == 0) {
+                        // Clean up from the last definition
+                        if(currentBlock) {
+                            add_block(currentBlockBody);
+                        }
+                        if(currentDefinition) {
+                            add_definition(currentDefinition);
+                        }
+                        currentBlockBody = null;
+                        currentBlock = null;
+                        currentDefinition = {
+                            body: []
+                        };
+                        if (rest.charAt(rest.length - 1) == '{') {
+                            warn_about_braces();
+                            rest = rest.slice(0,-1);
+                        }
+                        parse_definition_signature(currentDefinition,rest);
+                    }
+                    if(depth == 1) {
+                        if(currentBlock) {
+                            add_block(currentBlockBody);
+                        }
+                        collect = [];
+                        currentBlock = first;
+                        currentBlockBody = {
+                            body: ''
+                        }
+                        if (rest.charAt(rest.length - 1) == '{') {
+                            warn_about_braces();
+                            rest = rest.slice(0,-1);
+                        }
+                        switch(first) {
+                            case 'html':
+                            case 'contents':
+                            case 'css':
+                            case 'hover':
+                            case 'focus':
+                            case 'constructor':
+                            case 'extends':
+                                expect_empty(rest) || error_unexpected_block_argument(rest,first);
+                                break;
+                            default:
+                                !expect_empty(rest) || error_expected_block_argument(first);
+                        }
+                        parse_block_signature(currentBlockBody,first,rest);
+                    }
+                    if(depth > 1) {
+                        collect.push(line);
+                    }
+                }
+            } catch(e) {
+                error(e);
+            }
+
+            if(currentBlockBody) add_block(currentBlockBody);
+            if(currentDefinition) add_definition(currentDefinition);
+
+            if(add) {
+                definitions.map(function(def) {
+                    elm._definitions[def.name] = elm.createConstructor(def);
+                        $('.' + def.name).each(function () {
+                            elm.apply(this, def.name);
+                    });
+                });
+            }
+
+            return definitions;
+        },       
         createConstructor: function (definition, root) {
             if (root === undefined) root = true;
             return function (args, self, fireReady) {
                 var frame = {},
                 i;
                 if (fireReady === undefined) fireReady = true;
-                for (i = 0; i < definition.parameters.length; i++) {
-                    if (args[i] !== undefined) {
-                        frame[definition.parameters[i].name] = args[i];
-                    } else {
-                        frame[definition.parameters[i].name] = definition.parameters[i].value
+                if(args instanceof Array) {
+                    for (i = 0; i < definition.parameters.length; i++) {
+                        if (args[i] !== undefined) {
+                            frame[definition.parameters[i].name] = args[i];
+                        } else {
+                            if(!self || self[definition.parameters[i].name] === undefined) {
+                                frame[definition.parameters[i].name] = definition.parameters[i].value;
+                            }
+                        }
                     }
+                } else {
+                    frame = args || {};
                 }
-
+                if(self) self.__elemental = true;
                 definition.body.forEach(function (selector) {
-                    //try {
-                        self = elm.applySelectorTo(self, selector, frame, null, root);
+                	//try {
+                    	self = elm.applyBlockTo(self, selector, frame, null, root);
                     //} catch(e) {
-                   //   throw new Error('To create an element with elm.create(), its definition must begin with an html block.');
+                   // 	throw new Error('To create an element with elm.create(), its definition must begin with an html block.');
                   //  }
                 });
                 self.____construct = function() {
@@ -502,38 +733,42 @@ var elm;
                  }
                 // Add getStyle, setStyle, applyStyle function
                 self.getStyle = function(name,prop) {
-                    var style = self.__styles__[name];
-                    style.forEach(function(s) {
-                        if(s.prop == prop) {
-                            return s.value;
-                        }
-                    });
+                	var style = self.__styles__[name];
+                	style.forEach(function(s) {
+                		if(s.prop == prop) {
+                			return s.value;
+                		}
+                	});
                 };
                 self.setStyle = function(name,prop,val) {
-                    var style = self.__styles__[name];
-                    style.forEach(function(s) {
-                        if(s.prop == prop) {
-                            s.value = val;
-                        }
-                    });
+                	var style = self.__styles__[name];
+                	style.forEach(function(s) {
+                		if(s.prop == prop) {
+                			s.value = val;
+                		}
+                	});
                 };
-                self.applyStyle = function(name) {
-                    var style = self.__styles__[name];
-                    if(!style) return;
-                    style.forEach(function (p) {
-                        var val = p.value;
-                        for (var prop in frame) {
-                            val = val.split('$' + prop).join(frame[prop]);
-                        }
-                        $(self).css(p.prop, val);
-                    });
-                };
+				self.applyStyle = function(name) {
+					var style = self.__styles__[name];
+					if(!style) return;
+					style.forEach(function (p) {
+						var val = p.value;
+						for (var prop in frame) {
+							val = val.split('$' + prop).join(frame[prop]);
+						}
+						$(self).css(p.prop, val);
+					});
+				};
                 self.my = function(type) {
                     return $(self).find('.' + type).get(0);
                 };
                 self.$my = function(type) {
                     return $(self).find('.' + type);
                 };
+                self.named = function(name) {
+                    $(self).addClass(name);
+                    return self;
+                }
                 self.____construct();
                 $(self).find('*').each(function() {
                     if(this.____construct) {
@@ -546,7 +781,7 @@ var elm;
                 return self;
             };
         },
-        applySelectorTo: function (__el__, __selector__, __frame__, parent, root) {
+        applyBlockTo: function (__el__, __selector__, __frame__, parent, root) {
             // All of these underscores are to avoid namespace pollution...
             // These local variables will be closed under eval(), so we need
             // to make them as hard to access as possible.
@@ -560,6 +795,8 @@ var elm;
                     if (!__el__) {
                         __el__ = $(markup).get(0);
                     }
+                    __el__.__elemental = true;
+                    elm.log(__frame__);
                     for (var prop in __frame__) {
                         __el__[prop] = __frame__[prop];
                     }
@@ -577,9 +814,16 @@ var elm;
                         }
                     }
                     break;
+                case 'contents':
+                    var markup = __selector__.html;
+                    for (var prop in __frame__) {
+                        markup = markup.split('$' + prop).join(__frame__[prop]);
+                    }
+                    $(__el__).html(markup);
+                    break;
                 case 'extensor':
                     __selector__.supers.forEach(function (s) {
-                        elm.extend(__el__, s);
+                        __el__ = elm.extend(__el__, s, __frame__);
                     });
                     break;
                 case 'css':
@@ -592,15 +836,15 @@ var elm;
                     });
                     break;
                 case 'style': 
-                    if(!__el__.__styles__) __el__.__styles__ = {};
-                    __el__.__styles__[__selector__.name] = __selector__.properties.map(function(p) {
-                        // We're mapping to create a new list of CSS properties for each element, instead of modifying the definition
-                        return {
-                            prop: p.prop,
-                            value: p.value
-                        };
-                    });
-                    break;
+                	if(!__el__.__styles__) __el__.__styles__ = {};
+                	__el__.__styles__[__selector__.name] = __selector__.properties.map(function(p) {
+                		// We're mapping to create a new list of CSS properties for each element, instead of modifying the definition
+                		return {
+                			prop: p.prop,
+                			value: p.value
+                		};
+                	});
+                	break;
                 case 'hover':
                     var changes = __selector__.properties.map(function (p) {
                         var val = p.value;
@@ -677,7 +921,11 @@ var elm;
                     $(__el__).bind(__selector__.event, function () {
                         var __args__ = elm._argarr(arguments);
                         var ____func = 'var __func__ = function(' + __selector__.parameters.join(',') + ') { ';
+                        ____func += 'try {';
                         ____func += __selector__.body;
+                        ____func += '} catch(e) {';
+                        ____func += 'throw "Elemental.' + __selector__.definition.name + '#on:' + __selector__.event + ' <- " + e.valueOf();'; 
+                        ____func += '}';
                         ____func += '}';
                         eval(____func);
                         __func__.apply(__el__, __args__);
@@ -688,7 +936,11 @@ var elm;
                     var $parent = $(parent);
                     var $root = $(root);
                     var ____func = 'var __constructor__ = function() { ';
+                    ____func += 'try {';
                     ____func += (__selector__.body && __selector__.body.length > 0) ? __selector__.body : '';
+                    ____func += '} catch(e) {';
+                    ____func += 'throw "Elemental.' + __selector__.definition.name + '#(constructor) <- " + e.valueOf();'; 
+                    ____func += '}';
                     ____func += '}';
                     try {
                         eval(____func);
@@ -701,7 +953,11 @@ var elm;
                     var $parent = $(parent);
                     var $root = $(root);
                     var ____func = 'var __method__ = function(' + __selector__.parameters.join(',') + ') {';
+                    ____func += 'try {';
                     ____func += __selector__.body;
+                    ____func += '} catch(e) {';
+                    ____func += 'throw "Elemental.' + __selector__.definition.name + '#' + __selector__.name + '<- " + e.valueOf();'; 
+                    ____func += '}';
                     ____func += '}';
                     eval(____func);
                     __el__[__selector__.name] = __method__;
@@ -709,7 +965,7 @@ var elm;
                 case 'subselector':
                     $(__el__).find(__selector__.cssSelector).each(function (i, e) {
                         __selector__.body.forEach(function (block) {
-                            elm.applySelectorTo(e, block, __frame__, __el__, root);
+                            elm.applyBlockTo(e, block, __frame__, __el__, root);
                         });
                     });
                     break;
@@ -717,7 +973,7 @@ var elm;
                     __el__.__definitions[__selector__.name] = elm.createConstructor(__selector__, root);
                     $(__el__).find('.' + __selector__.name).each(function (i, e) {
                         __selector__.body.forEach(function (block) {
-                            elm.applySelectorTo(e, block, __frame__, __el__, root);
+                            elm.applyBlockTo(e, block, __frame__, __el__, root);
                         });
                         e.$ = $(e);
                         e.____construct = function() {
@@ -732,11 +988,14 @@ var elm;
                     break;
             };
             return __el__;
+        },
+        log: function() {
+            var args = elm._argarr(arguments);
+            if(elm.verbose) console.log.apply(console,arguments);
         }
     };
 
     var seeIfLoaded = function () {
-        console.log('seeIfLoaded');
         if ($('head').length > 0) {
             elm.using.apply(null, $('script').toArray().map(function (i) {
                 if ($(i).attr('type').indexOf('elemental') != -1) {
