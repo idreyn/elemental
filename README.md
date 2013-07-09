@@ -61,7 +61,7 @@ Elemental offers a better alternative to this mess by letting you write HTML, CS
 	
 Nice, isn't it? With Elemental you can clearly define what a `.better-select` is supposed to be &mdash; what its HTML looks like, how it is styled, and how it behaves. So in a sense, Elemental is a tiny domain-specific language (DSL) for writing components in HTML.
 
-# The Format
+## The Format
 
 Elemental definitions go inside a `.elm` file, which consists of one or more `def` statements that look like this:
 
@@ -116,7 +116,7 @@ But that's not all Elemental can do. Here's the lowdown on all the different blo
 
 * __style__: Lets you define a CSS style to apply to the element. See the section directly below for more.
 
-# Stylin'
+## Stylin'
 
 Elemental provides `hover` and `focus` blocks to support the matching CSS psuedoclasses, but it's possible to create additional style blocks to be applied to the definition at runtime. This is accomplished by adding a `style` block like so:
 
@@ -132,13 +132,13 @@ Anywhere in your Javascript, you can call the object's `setStyle` method:
 
 You can also query and modify these styles live in your javascript with these methods: `getStyle(styleName,cssProp)` and `setStyle(styleName,cssProp,cssValue)`.
 
-# Query eye for the straight guy
+## Query eye for the straight guy
 
 Elemental plays nice with jQuery (actually, it's a dependency). In addition to the `$this`, `$parent`, and `$root` objects mentioned above, you can get a reference to any Elemental object's jQuery wrapper by referencing its `$` property like so:
 	$this.myButton.$.on('click',myCallback);
 Elemental objects also have a pair of functions, `$my` and `my`, which serve as convenient shortcuts to the most common jQuery queries. In short, `object.$my(className)` returns all children of `object` with the CSS class `classname`, while plain old `my` returns the first element of that set.
 
-# A little bit of syntactic sugar
+## A little bit of syntactic sugar
 
 Actually, using `$my` and `my` are almost invariably a waste of your time because Elemental includes a little syntactic sugar to make these very common queries more palatable. In any Javascript block, you can use `@element-class` and the preprocessor will replace that with `my('element-class')`. `$element-class` also becomes `$my('element-class')`.
 
@@ -146,15 +146,15 @@ One more handy trick: `this.#methodName` becomes `$.proxy(this.methodName,this)`
 
 So what I'm saying here is that you may never use `$.find` again to target children. Hallelujah!
 
-# ...And a little bit of syntactic salt
+## ...And a little bit of syntactic salt
 
 Believe it or not the curly braces you've been seeing are totally optional in Elemental. It's actually parsed by looking at the indentation, Python style, so the indents are not. Sorry about that!
 
-# A comment on comments
+## A comment on comments
 
 Elemental supports C-style single line (`//`) comments anywhere, and HTML (`<!-- -->`) comments in HTML. Block comments (`/* */`) are not supported anywhere for the time being, even in CSS.
 
-# So how do I use it?
+## So how do I use it?
 
 Elemental is dependent on jQuery, so you'll need to include that, along with Elemental.js, in the `<head>` of your document. Anywhere before these `<script>` tags, you can add Elemental definitions like this:
 	
@@ -177,8 +177,3 @@ The `elm` object has a couple of other noteworthy methods, too:
 * __elmify(HTMLElement e):__ Looks for class names in `e` and its children and applies matching Elemental definitions.
 
 That's just about it! You're ready to incorporate Elemental into your HTML5 workflow.
-
-
-
-		
-		
