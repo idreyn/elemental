@@ -102,7 +102,7 @@ But that's not all Elemental can do. Here's the lowdown on all the different blo
 
 * __focus:__ Just a CSS block that is only applied when the element has focus.
 
-* __constructor:__ This one's a biggie. Constructor contains Javascript that is executed as soon as the object is created. You can't use $variables here...instead, the arguments you passed into the constructor have become properties of the object! Here, as in all JS blocks, `this` refers to the object being defined and `$this` is a cached reference to its jQuery wrapper. When you use 
+* __constructor:__ This one's a biggie. Constructor contains Javascript that is executed as soon as the object is created. You can't use $variables here...instead, the arguments you passed into the constructor have become properties of the object! Here, as in all JS blocks, `this` refers to the object being defined and `$this` is a cached reference to its jQuery wrapper. When you use `extends` blocks, all constructors passed into the definition will be executed in the order they are received. Tread carefully. 
 
 * __on event(e):__ The `on` block binds the JS it contains to an event, say, `click` or `keydown`. The parentheses can contain parameters to be used inside the block, but are completely optional.
 
