@@ -135,7 +135,7 @@ You can also query and modify these styles live in your javascript with these me
 ## Query eye for the straight guy
 
 Elemental plays nice with jQuery (actually, it's a dependency). In addition to the `$this`, `$parent`, and `$root` objects mentioned above, you can get a reference to any Elemental object's jQuery wrapper by referencing its `$` property like so:
-	$this.myButton.$.on('click',myCallback);
+	`$this.myButton.$.on('click',myCallback);`
 Elemental objects also have a pair of functions, `$my` and `my`, which serve as convenient shortcuts to the most common jQuery queries. In short, `object.$my(className)` returns all children of `object` with the CSS class `classname`, while plain old `my` returns the first element of that set.
 
 ## A little bit of syntactic sugar
