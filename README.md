@@ -116,6 +116,8 @@ But that's not all Elemental can do. Here's the lowdown on all the different blo
 
 * __style__: Lets you define a CSS style to apply to the element. See the section directly below for more.
 
+* __properties__: A list of newline-delimited key:value pairs to be applied to the object.
+
 ## Stylin'
 
 Elemental provides `hover` and `focus` blocks to support the matching CSS psuedoclasses, but it's possible to create additional style blocks to be applied to the definition at runtime. This is accomplished by adding a `style` block like so:
