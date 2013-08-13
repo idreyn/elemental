@@ -118,6 +118,14 @@ But that's not all Elemental can do. Here's the lowdown on all the different blo
 
 * __properties__: A list of newline-delimited key:value pairs to be applied to the object.
 
+## Special variables
+
+Within a Javascript block, you can use number of built-in variables intended to ease the pain of Javascript's "flexible" scoping system.
+
+* __this:__ Using `this` in a method, handler, or constructor will generally refer to the object at hand. But if you start passing references to these functions, the function will be scoped according to normal JS rules and `this` might end up referring to an event handler target, the global scope, or any number of things that aren't the object you're building.
+* __$this:__ A cached version of `$(this)`. It is created once during object construction and will always refer to the object at hand even if `this` refers to something else.
+* __self:__ Solves the problem of scope introduced by `this`. `self` will ALWAYS refer to the object at hand, even in situations where `this` is something else (e.g. event handlers, setTimeout callbacks). If you don't want to take advantage of flexible scoping, just use `self` instead of `this`.
+
 ## Stylin'
 
 Elemental provides `hover` and `focus` blocks to support the matching CSS psuedoclasses, but it's possible to create additional style blocks to be applied to the definition at runtime. This is accomplished by adding a `style` block like so:
@@ -173,7 +181,7 @@ You could just as easily append this object within the html block of the definit
 To apply a CSS class to the button (making it easy to reference with $my), you can use a colon before the definition name like this:
 
 	html {
-		[[login-button:Button 'Login',self.doLogin]];
+		[[login-button:Button 'Login',this.doLogin]];
 	}
 	
 This `login-button` can now be referenced in Javascript:
@@ -197,7 +205,7 @@ The `elm` object has a couple of other noteworthy methods, too:
 
 * __apply(HTMLElement e,String definition,[arguments...]):__ Applies an Elemental definition to an HTML object. 
 
-*  __def(String definition):__  Returns the constructor function for an Elemental definition.
+* __def(String definition):__  Returns the constructor function for an Elemental definition.
 
 * __parse(String toParse):__ Parses an Elemental definition from any string input.
 
