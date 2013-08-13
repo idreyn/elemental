@@ -138,7 +138,7 @@ You can also query and modify these styles live in your javascript with these me
 
 Elemental plays nice with jQuery (actually, it's a dependency). In addition to the `$this`, `$parent`, and `$root` objects mentioned above, you can get a reference to any Elemental object's jQuery wrapper by referencing its `$` property like so:
 	`$this.myButton.$.on('click',myCallback);`
-Elemental objects also have a pair of functions, `$my` and `my`, which serve as convenient shortcuts to the most common jQuery queries. In short, `object.$my(className)` returns all children of `object` with the CSS class `classname`, while plain old `my` returns the first element of that set.
+Elemental objects also have a pair of functions, `$my` and `my`, which serve as convenient shortcuts to the most common jQuery queries. In short, `object.$my(className)` returns all children of `object` with the CSS class `classname`, while plain old `my` returns the first element of that set. As such, Elemental encourages the use of unique class names to identify objects.
 
 ## A little bit of syntactic sugar
 
@@ -155,6 +155,33 @@ Believe it or not the curly braces you've been seeing are totally optional in El
 ## A comment on comments
 
 Elemental supports C-style single line (`//`) comments anywhere, and HTML (`<!-- -->`) comments in HTML. Block comments (`/* */`) are not supported anywhere for the time being, even in CSS.
+
+## Inline objects using [[braces]]
+
+In a block containing HTML or Javascript, you can use double square brackets to insert an Elemental object like so:
+
+	var login_button = [[Button 'Login',self.doLogin]];
+	// Same as elm.create('Button','Login',self.doLogin);
+	$this.append(login_button);
+	
+You could just as easily append this object within the html block of the definition
+	
+	html {
+		[[Button 'Login',self.doLogin]];
+	}
+	
+To apply a CSS class to the button (making it easy to reference with $my), you can use a colon before the definition name like this:
+
+	html {
+		[[login-button:Button 'Login',self.doLogin]];
+	}
+	
+This `login-button` can now be referenced in Javascript:
+
+	method doLogin {
+		this.$login-button.hide();
+		...
+	}
 
 ## So how do I use it?
 
