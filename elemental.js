@@ -244,6 +244,7 @@ var elm;
 
     function add_elemental_methods(self,frame) {
         frame = frame || {};
+        self.$ = $(self);
         // Add getStyle, setStyle, applyStyle function
         self.getStyle = function(name,prop) {
             var style = self.__styles__[name];
@@ -1004,7 +1005,7 @@ var elm;
                         prev = [];
                     });
                 case 'event':
-                    var $this = $(__el__);
+                    var $this = $self = $(__el__);
                     var $parent = $(parent);
                     var $root = $(root);
                     $(__el__).bind(__selector__.event, function () {
@@ -1021,7 +1022,7 @@ var elm;
                     });
                     break;
                 case 'constructor':
-                    var $this = $(__el__);
+                    var $this = $self = $(__el__);
                     var $parent = $(parent);
                     var $root = $(root);
                     var ____func = 'var __constructor__ = function() { ';
@@ -1038,7 +1039,7 @@ var elm;
                     } catch (e) {}
                     break;
                 case 'method':
-                    var $this = $(__el__);
+                    var $this = $self = $(__el__);
                     var $parent = $(parent);
                     var $root = $(root);
                     var ____func = 'var __method__ = function(' + __selector__.parameters.join(',') + ') {';
@@ -1056,6 +1057,16 @@ var elm;
                         __selector__.body.forEach(function (block) {
                             elm.applyBlockTo(e, block, __frame__, __el__, root);
                         });
+                        e.$ = $(e);
+                        add_elemental_methods(e);
+                        e.____construct = function() {
+                            e.____constructors = e.____constructors || [];
+                            e.____constructors.reverse().forEach(function(constructor) {
+                                if(!constructor.called) constructor.call(e);
+                                constructor.called = true;
+                            });
+                         }
+                         e.____construct();
                     });
                     break;
                 case 'subdef':
