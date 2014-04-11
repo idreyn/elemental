@@ -114,7 +114,7 @@ But that's not all Elemental can do. Here's the lowdown on all the different blo
 
 * __extends:__ You can provide a newline- or comma-delineated list of other Elemental classes for this one to inherit blocks from. You can add several `extends` blocks to a definition, which is handy because placement matters &mdash; Elemental definitions are read from the topmost block to the bottommost, and this block essentially sticks new blocks in the middle. So if you're extending a definition that specifies its own `html` but you want to define different HTML for the new definition, you need to put the `extends` block after the `html` one. In the same vein, `constructor` blocks will be run in the order they are received. Use caution.
 
-* __style__: Lets you define a CSS style to apply to the element. See the section directly below for more.
+* __style__: Lets you define a CSS style to apply to the element. See the section below for more.
 
 * __properties__: A list of newline-delimited key:value pairs to be applied to the object.
 
@@ -138,7 +138,7 @@ Elemental provides `hover` and `focus` blocks to support the matching CSS psuedo
 
 Anywhere in your Javascript, you can call the object's `setStyle` method:
 
-	this.setStyle('active');
+	this.applyStyle('active');
 
 You can also query and modify these styles live in your javascript with these methods: `getStyle(styleName,cssProp)` and `setStyle(styleName,cssProp,cssValue)`.
 
