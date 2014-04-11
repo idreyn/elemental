@@ -78,6 +78,7 @@ Elemental definitions go inside a `.elm` file, which consists of one or more `de
 This tells us that an element with the class `.my-element` is just a span of some width. If we save it to `my-element.elm`, we can include Elemental.js into our document and then write:
 
 	elm.using('my-element.elm',function() {
+	
 		// We're ready!
 		// Note that you can actually pass as many .elm files as you want into using,
 		// as long as the last argument is a callback to be executed when they are
