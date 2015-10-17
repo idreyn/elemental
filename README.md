@@ -143,7 +143,7 @@ Anywhere in your Javascript, you can call the object's `setStyle` method:
 
 You can also query and modify these styles live in your javascript with these methods: `getStyle(styleName,cssProp)` and `setStyle(styleName,cssProp,cssValue)`.
 
-## Query eye for the straight guy
+## Queries
 
 Elemental plays nice with jQuery (actually, it's a dependency). In addition to the `$this`, `$parent`, and `$root` objects mentioned above, you can get a reference to any Elemental object's jQuery wrapper by referencing its `$` property like so:
 	`$this.myButton.$.on('click',myCallback);`
