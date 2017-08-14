@@ -1,4 +1,4 @@
-![elemental](http://i.eho.st/ppbljd2x.png "Elemental")
+TURN BACK, WE HAVE REACT FOR THIS NOW LOL
 
 # What's wrong with this picture? 
 
